@@ -1,0 +1,112 @@
+name: 'Pilum Deploy'
+description: 'Build and deploy services with Pilum — the cloud-agnostic deployment CLI.'
+author: 'SID Technologies'
+
+branding:
+  icon: 'send'
+  color: 'yellow'
+
+inputs:
+  version:
+    description: 'Pilum version to install (e.g., v0.3.1). Defaults to latest release.'
+    required: false
+    default: 'latest'
+  command:
+    description: 'Pilum command to run (deploy, build, publish, push, check, dry-run, list).'
+    required: false
+    default: 'deploy'
+  tag:
+    description: 'Version tag passed to --tag (e.g., v1.0.0).'
+    required: false
+    default: ''
+  services:
+    description: 'Space-separated list of services to target. Omit to target all.'
+    required: false
+    default: ''
+  working-directory:
+    description: 'Directory to run Pilum from. Defaults to repository root.'
+    required: false
+    default: '.'
+  flags:
+    description: 'Additional CLI flags (e.g., --only-tags=deploy --debug).'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Determine platform
+      id: platform
+      shell: bash
+      run: |
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        case "$ARCH" in
+          x86_64)  ARCH="amd64" ;;
+          aarch64) ARCH="arm64" ;;
+          arm64)   ARCH="arm64" ;;
+        esac
+        echo "os=$OS" >> "$GITHUB_OUTPUT"
+        echo "arch=$ARCH" >> "$GITHUB_OUTPUT"
+
+    - name: Resolve version
+      id: version
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        if [ "$INPUT_VERSION" = "latest" ]; then
+          VERSION=$(gh release view --repo SID-Technologies/Pilum --json tagName -q .tagName)
+        else
+          VERSION="$INPUT_VERSION"
+          # Ensure v prefix
+          if [[ ! "$VERSION" == v* ]]; then
+            VERSION="v$VERSION"
+          fi
+        fi
+        echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Install Pilum
+      shell: bash
+      env:
+        VERSION: ${{ steps.version.outputs.tag }}
+        OS: ${{ steps.platform.outputs.os }}
+        ARCH: ${{ steps.platform.outputs.arch }}
+      run: |
+        ARCHIVE="pilum_${VERSION}_${OS}_${ARCH}.tar.gz"
+        URL="https://github.com/SID-Technologies/Pilum/releases/download/${VERSION}/${ARCHIVE}"
+
+        echo "::group::Installing Pilum ${VERSION} (${OS}/${ARCH})"
+        curl -fsSL "$URL" -o "/tmp/${ARCHIVE}"
+        tar -xzf "/tmp/${ARCHIVE}" -C /tmp
+        sudo mv /tmp/pilum /usr/local/bin/pilum
+        rm -f "/tmp/${ARCHIVE}"
+        echo "::endgroup::"
+
+        pilum --version
+
+    - name: Run Pilum
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_TAG: ${{ inputs.tag }}
+        INPUT_SERVICES: ${{ inputs.services }}
+        INPUT_FLAGS: ${{ inputs.flags }}
+      run: |
+        CMD="pilum ${INPUT_COMMAND}"
+
+        if [ -n "$INPUT_SERVICES" ]; then
+          CMD="$CMD $INPUT_SERVICES"
+        fi
+
+        if [ -n "$INPUT_TAG" ]; then
+          CMD="$CMD --tag=${INPUT_TAG}"
+        fi
+
+        if [ -n "$INPUT_FLAGS" ]; then
+          CMD="$CMD $INPUT_FLAGS"
+        fi
+
+        echo "Running: $CMD"
+        eval "$CMD"
