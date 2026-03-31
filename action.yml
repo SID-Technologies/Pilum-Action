@@ -75,13 +75,18 @@ runs:
         ARCH: ${{ steps.platform.outputs.arch }}
       run: |
         ARCHIVE="pilum_${VERSION}_${OS}_${ARCH}.tar.gz"
-        BINARY="pilum_${VERSION}_${OS}_${ARCH}"
         URL="https://github.com/SID-Technologies/Pilum/releases/download/${VERSION}/${ARCHIVE}"
 
         echo "::group::Installing Pilum ${VERSION} (${OS}/${ARCH})"
         curl -fsSL "$URL" -o "/tmp/${ARCHIVE}"
         tar -xzf "/tmp/${ARCHIVE}" -C /tmp
-        sudo mv "/tmp/${BINARY}" /usr/local/bin/pilum
+
+        # Handle both naming conventions: "pilum" (v0.5.6+) and "pilum_vX.Y.Z_os_arch" (older)
+        if [ -f "/tmp/pilum" ]; then
+          sudo mv "/tmp/pilum" /usr/local/bin/pilum
+        else
+          sudo mv "/tmp/pilum_${VERSION}_${OS}_${ARCH}" /usr/local/bin/pilum
+        fi
         sudo chmod +x /usr/local/bin/pilum
         rm -f "/tmp/${ARCHIVE}"
         echo "::endgroup::"
