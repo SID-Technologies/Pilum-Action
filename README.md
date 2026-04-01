@@ -155,4 +155,4 @@ The action automatically detects the runner's OS and architecture:
 
 ## License
 
-BSL 1.1 — See [LICENSE](LICENSE).
+Apache 2.0 — See [LICENSE](LICENSE).
