@@ -32,9 +32,9 @@ inputs:
     required: false
     default: ''
   telemetry:
-    description: 'Share anonymous build telemetry (recipe, step, success, duration; never names, paths or errors). Sets PILUM_TELEMETRY=1. See https://pilum.dev/docs/reference/telemetry/'
+    description: 'Share anonymous build telemetry (recipe, step, success, duration; never names, paths or errors). On by default; set to false to turn it off. See https://pilum.dev/docs/reference/telemetry/'
     required: false
-    default: 'false'
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -107,10 +107,15 @@ runs:
         INPUT_FLAGS: ${{ inputs.flags }}
         INPUT_TELEMETRY: ${{ inputs.telemetry }}
       run: |
-        # Only opt in when asked. Leaving PILUM_TELEMETRY alone otherwise keeps
-        # a job-level PILUM_TELEMETRY or DO_NOT_TRACK in charge.
-        if [ "$INPUT_TELEMETRY" = "true" ]; then
+        # On unless the input says false. A job-level PILUM_TELEMETRY wins over
+        # the default, and DO_NOT_TRACK=1 beats everything (the CLI checks it).
+        if [ "$INPUT_TELEMETRY" = "false" ]; then
+          export PILUM_TELEMETRY=0
+        elif [ -z "${PILUM_TELEMETRY:-}" ]; then
           export PILUM_TELEMETRY=1
+        fi
+        if [ "$PILUM_TELEMETRY" = "1" ] && [ -z "${DO_NOT_TRACK:-}" ]; then
+          echo "Pilum telemetry is on: anonymous build stats, no names, paths or errors. Set telemetry: false to turn it off. https://pilum.dev/docs/reference/telemetry/"
         fi
 
         CMD="pilum ${INPUT_COMMAND}"
