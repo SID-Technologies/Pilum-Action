@@ -121,6 +121,7 @@ jobs:
 | `services` | No | | Space-separated list of services to target |
 | `working-directory` | No | `.` | Directory to run Pilum from |
 | `flags` | No | | Additional CLI flags |
+| `telemetry` | No | `false` | Share anonymous build telemetry (sets `PILUM_TELEMETRY=1`) |
 
 ## Environment Variables
 
@@ -141,6 +142,19 @@ env:
   # Homebrew
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
 ```
+
+## Telemetry
+
+Pilum's telemetry is off unless you opt in. `telemetry: true` turns it on for the run:
+
+```yaml
+- uses: SID-Technologies/pilum-action@v1
+  with:
+    command: deploy
+    telemetry: true
+```
+
+Each `deploy`, `build`, `publish`, `push` or `rollback` then sends the Pilum version, OS and architecture, the command, success or failure, duration, service count, built-in recipe names, and for failed steps the step name and an error category. Never service names, project IDs, paths, tags, repo names or error messages. A job-level `DO_NOT_TRACK=1` still turns it off. Sending gives up after one second and never fails a run. Details: [pilum.dev/docs/reference/telemetry](https://pilum.dev/docs/reference/telemetry/).
 
 ## Platform Support
 
